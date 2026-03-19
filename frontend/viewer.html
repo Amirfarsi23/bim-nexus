@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BIM Nexus — 3D Viewer</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#F5F4F0;--surface:#fff;--border:#E2E0D8;
+      --text:#1A1916;--muted:#7C7B74;--accent:#1A3A2A;
+      --accent2:#2D5C42;--hi:#E8F2EC;--red:#C0392B;
+      --blue:#1D4ED8;--blue-bg:#DBEAFE;
+      --mono:'DM Mono',monospace;--sans:'DM Sans',sans-serif;
+    }
+    body{font-family:var(--sans);background:#0f1117;color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+    header{background:var(--accent);height:50px;display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0}
+    .lm{width:22px;height:22px;border:2px solid rgba(255,255,255,0.4);display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:2px}
+    .lm span{background:rgba(255,255,255,0.8)}
+    .lm span:first-child{background:#fff}
+    header h1{font-size:13px;font-weight:600;color:#fff}
+    .nbtn{margin-left:auto;padding:5px 12px;border-radius:4px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.75);text-decoration:none;font-family:var(--sans)}
+    .toolbar{background:var(--surface);border-bottom:1px solid var(--border);height:42px;display:flex;align-items:center;padding:0 14px;gap:5px;flex-shrink:0}
+    .tlbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+    .tbtn{padding:4px 10px;border-radius:4px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--sans);transition:all .12s;white-space:nowrap}
+    .tbtn:hover{background:var(--hi);border-color:var(--accent2);color:var(--accent)}
+    .tbtn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .tsep{width:1px;height:18px;background:var(--border);margin:0 1px}
+    .einfo{margin-left:auto;font-size:11px;color:var(--muted);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px}
+    .layout{display:flex;flex:1;overflow:hidden}
+    .vpane{flex:1;position:relative;min-width:0}
+    canvas{display:block;width:100%!important;height:100%!important}
+    .vload{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(15,17,23,0.97);color:rgba(255,255,255,0.7);gap:14px;z-index:10}
+    .vload.hidden{display:none}
+    .lbar{width:260px;height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden}
+    .lfill{height:100%;background:#4ADE80;border-radius:2px;transition:width .3s;width:0%}
+    .ltitle{font-size:14px;font-weight:500;color:rgba(255,255,255,0.85)}
+    .lmsg{font-size:11px;color:rgba(255,255,255,0.35);font-family:var(--mono)}
+    .resizer{width:4px;background:var(--border);cursor:col-resize;flex-shrink:0}
+    .resizer:hover{background:var(--accent2)}
+    .rpanel{width:360px;min-width:280px;max-width:520px;display:flex;flex-direction:column;background:var(--surface);border-left:1px solid var(--border);flex-shrink:0;overflow:hidden}
+    .ptabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+    .ptab{flex:1;padding:10px 4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;border:none;background:none;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;font-family:var(--sans);transition:all .12s}
+    .ptab.active{color:var(--accent);border-bottom-color:var(--accent)}
+    .tc{display:none;flex:1;overflow:hidden;flex-direction:column}
+    .tc.active{display:flex}
+    /* RAUMBUCH */
+    .rtscroll{flex:1;overflow-y:auto}
+    table{width:100%;border-collapse:collapse}
+    th{position:sticky;top:0;background:var(--bg);padding:7px 10px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--border);z-index:1}
+    td{padding:7px 10px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:11px;color:var(--text)}
+    .tdn{font-family:var(--sans);font-weight:500;font-size:11.5px}
+    tr:hover td{background:var(--bg);cursor:pointer}
+    tr.r-sel td{background:#dbeafe}
+    tr.r-hi td{background:#fef9c3}
+    /* ELEMENT */
+    .ipanel{padding:14px;flex:1;overflow-y:auto}
+    .iempty{display:flex;align-items:center;justify-content:center;height:180px;color:var(--muted);font-size:12px;text-align:center;padding:24px;line-height:1.6}
+    .isec{margin-bottom:16px}
+    .isectitle{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+    .irow{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;gap:8px}
+    .irow:last-child{border-bottom:none}
+    .ikey{color:var(--muted);flex-shrink:0;min-width:90px;font-size:11.5px}
+    .ival{font-family:var(--mono);font-size:11px;font-weight:500;text-align:right}
+    .iedit{font-family:var(--mono);font-size:11px;border:1px solid transparent;border-radius:3px;padding:2px 6px;background:transparent;color:var(--text);text-align:right;width:140px}
+    .iedit:hover{border-color:var(--border);background:var(--bg)}
+    .iedit:focus{border-color:var(--accent2);background:#fff;outline:none}
+    .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+    .b-wall{background:#e8e0d0;color:#6b5a3e}
+    .b-slab{background:#ddd5c5;color:#5a4a30}
+    .b-door{background:#f0e6d4;color:#7a5c3a}
+    .b-window{background:#dbeafe;color:#1d4ed8}
+    .b-furniture{background:#fef3c7;color:#92400e}
+    .b-element{background:#f3f4f6;color:#374151}
+    .room-tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;background:var(--hi);color:var(--accent);font-weight:500}
+    .rselect{width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:var(--sans);color:var(--text);background:var(--bg);cursor:pointer;margin-top:4px}
+    .rselect:focus{outline:none;border-color:var(--accent2)}
+    /* PARAMS */
+    .pscroll{flex:1;overflow-y:auto;padding:12px 14px}
+    .prow{display:flex;gap:5px;align-items:center;margin-bottom:6px}
+    .pkey,.pval{flex:1;padding:5px 7px;border:1px solid var(--border);border-radius:4px;font-size:11px;background:var(--surface);color:var(--text)}
+    .pval{font-family:var(--mono)}
+    .pkey:focus,.pval:focus{outline:none;border-color:var(--accent2)}
+    .pdel{width:22px;height:22px;border:none;border-radius:3px;background:#fee2e2;color:var(--red);cursor:pointer;font-size:14px;flex-shrink:0}
+    .addp{width:100%;padding:7px;border:1px dashed var(--border);border-radius:4px;background:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:var(--sans)}
+    .addp:hover{border-color:var(--accent2);color:var(--accent);background:var(--hi)}
+    /* SAVE BAR */
+    .savebar{padding:8px 14px;background:var(--hi);border-top:1px solid #B6D9C2;display:none;align-items:center;gap:8px;flex-shrink:0}
+    .savebar.show{display:flex}
+    .savebar span{font-size:11px;color:var(--accent);flex:1}
+    .sbtn{padding:5px 12px;border-radius:4px;font-size:11px;font-weight:500;cursor:pointer;font-family:var(--sans)}
+    .sbtn-p{background:var(--accent);color:#fff;border:none}
+    .sbtn-s{background:transparent;color:var(--muted);border:1px solid var(--border)}
+    /* BREAKDOWN TOGGLE */
+    .breakdown-bar{padding:8px 14px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0}
+    .breakdown-bar span{font-size:11px;color:var(--muted);flex:1}
+    .breakdown-btn{padding:4px 10px;border-radius:4px;font-size:11px;font-weight:500;cursor:pointer;font-family:var(--sans);border:1px solid var(--border);background:var(--surface);color:var(--text)}
+    .breakdown-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+    /* LOADING SPINNER */
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spinner{display:inline-block;width:10px;height:10px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:4px}
+    ::-webkit-scrollbar{width:3px}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="lm"><span></span><span></span><span></span><span></span></div>
+  <h1>BIM Nexus — 3D Viewer</h1>
+  <a href="/" class="nbtn">Back to Platform</a>
+</header>
+
+<div class="toolbar">
+  <span class="tlbl">View</span>
+  <button class="tbtn active" id="btn-orbit" onclick="setMode('orbit')">Orbit</button>
+  <button class="tbtn" id="btn-select" onclick="setMode('select')">Select</button>
+  <div class="tsep"></div>
+  <button class="tbtn" onclick="resetCam()">Reset Camera</button>
+  <button class="tbtn" onclick="toggleTransp()">Transparency</button>
+  <button class="tbtn" onclick="showAll()">Show All</button>
+  <button class="tbtn" onclick="reload()">Reload</button>
+  <div class="einfo" id="einfo">Orbit to navigate — Switch to Select to inspect elements</div>
+</div>
+
+<div class="layout">
+
+  <div class="vpane" id="vpane">
+    <div class="vload" id="vload">
+      <div class="ltitle">Loading IFC Model</div>
+      <div class="lbar"><div class="lfill" id="lfill"></div></div>
+      <div class="lmsg" id="lmsg">Initializing...</div>
+    </div>
+    <canvas id="vc"></canvas>
+  </div>
+
+  <div class="resizer" id="resizer"></div>
+
+  <div class="rpanel" id="rpanel">
+    <div class="ptabs">
+      <button class="ptab active" onclick="showTab('raumbuch',this)">Raumbuch</button>
+      <button class="ptab" onclick="showTab('element',this)">Element</button>
+      <button class="ptab" onclick="showTab('params',this)">Parameters</button>
+    </div>
+
+    <!-- TAB: RAUMBUCH -->
+    <div class="tc active" id="tab-raumbuch">
+      <div class="rtscroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Room</th><th>NGF m²</th>
+              <th>Paint</th><th>Tiles</th><th>Doors</th>
+            </tr>
+          </thead>
+          <tbody id="rbody">
+            <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">
+              Loading room data...
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: ELEMENT -->
+    <div class="tc" id="tab-element">
+      <div class="breakdown-bar" id="breakdown-bar" style="display:none">
+        <span id="breakdown-label">Whole element selected</span>
+        <button class="breakdown-btn" id="breakdown-btn"
+                onclick="toggleBreakdown()">Break Down</button>
+      </div>
+      <div class="ipanel" id="ipanel">
+        <div class="iempty">
+          Switch to Select mode then click any element in the 3D view to inspect it
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: PARAMS -->
+    <div class="tc" id="tab-params">
+      <div id="p-empty" style="padding:32px;text-align:center;color:var(--muted);font-size:12px;line-height:1.7">
+        Select an element first,<br>then add custom parameters<br>
+        <span style="color:var(--accent2);font-size:11px">e.g. Cost, Contractor, Warranty, Notes</span>
+      </div>
+      <div id="p-panel" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted)" id="p-title"></div>
+        <div class="pscroll" id="p-list"></div>
+        <div style="padding:8px 14px;border-top:1px solid var(--border)">
+          <button class="addp" onclick="addParam()">+ Add Parameter</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="savebar" id="savebar">
+      <span id="savemsg">Changes pending</span>
+      <button class="sbtn sbtn-s" onclick="discardAll()">Discard</button>
+      <button class="sbtn sbtn-p" onclick="saveAll()">Save + Update Raumbuch</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script type="module">
+import * as WebIFC from "https://cdn.jsdelivr.net/npm/web-ifc@0.0.44/web-ifc-api.js";
+
+const API = "";
+
+// ── STATE ─────────────────────────────────────────
+let ifcAPI   = null;
+let modelId  = null;
+let mode     = "orbit";
+let transp   = false;
+
+// elementMap: Map<expressId, {meshes:[], origColors:[], type}>
+const elementMap = new Map();
+const allMeshes  = [];   // flat list for raycasting
+let selExpId     = null; // currently selected expressId
+let breakdownMode = false;
+let roomHighlightIds = new Set(); // expressIds highlighted blue for room
+
+const dirty  = {};
+let rooms    = [];
+const cparams = {};
+
+// ── RENDERER ──────────────────────────────────────
+const canvas = document.getElementById("vc");
+const vpane  = document.getElementById("vpane");
+const rend   = new THREE.WebGLRenderer({canvas, antialias:true});
+rend.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+rend.setClearColor(0x0f1117);
+
+const scene  = new THREE.Scene();
+scene.background = new THREE.Color(0x0f1117);
+const camera = new THREE.PerspectiveCamera(55, 1, 0.01, 5000);
+
+const ifcGroup = new THREE.Group();
+scene.add(ifcGroup);
+
+function resz() {
+  const w = vpane.clientWidth, h = vpane.clientHeight;
+  rend.setSize(w, h, false);
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+}
+resz();
+new ResizeObserver(resz).observe(vpane);
+
+// Lights
+scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+const sun = new THREE.DirectionalLight(0xfff8e1, 0.9);
+sun.position.set(50, 100, 50);
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xc9e4ff, 0.4);
+fill.position.set(-30, 40, -30);
+scene.add(fill);
+scene.add(new THREE.GridHelper(500, 100, 0x1e2a3a, 0x141c28));
+
+// ── ORBIT ─────────────────────────────────────────
+let drag = false;
+let mouseDown = {x:0, y:0};
+let pm   = {x:0, y:0};
+let sph  = {theta:0.6, phi:1.0, r:25};
+let tgt  = new THREE.Vector3(0, 3, 0);
+
+function camUpdate() {
+  camera.position.set(
+    tgt.x + sph.r*Math.sin(sph.phi)*Math.sin(sph.theta),
+    tgt.y + sph.r*Math.cos(sph.phi),
+    tgt.z + sph.r*Math.sin(sph.phi)*Math.cos(sph.theta)
+  );
+  camera.lookAt(tgt);
+}
+camUpdate();
+
+canvas.addEventListener("mousedown", e => {
+  drag = true;
+  pm   = {x:e.clientX, y:e.clientY};
+  mouseDown = {x:e.clientX, y:e.clientY};
+});
+
+window.addEventListener("mouseup", e => {
+  drag = false;
+  const dx = Math.abs(e.clientX - mouseDown.x);
+  const dy = Math.abs(e.clientY - mouseDown.y);
+  // Only select if barely moved (not a drag)
+  if(dx < 5 && dy < 5 && mode === "select") doRaycast(e);
+});
+
+canvas.addEventListener("mousemove", e => {
+  if(!drag || mode !== "orbit") return;
+  sph.theta -= (e.clientX - pm.x) * 0.005;
+  sph.phi = Math.max(0.05, Math.min(Math.PI-0.05, sph.phi + (e.clientY-pm.y)*0.005));
+  pm = {x:e.clientX, y:e.clientY};
+  camUpdate();
+});
+
+canvas.addEventListener("wheel", e => {
+  sph.r = Math.max(0.5, Math.min(2000, sph.r + e.deltaY*0.06));
+  camUpdate();
+  e.preventDefault();
+}, {passive:false});
+
+// ── PROGRESS ──────────────────────────────────────
+function prog(p, msg) {
+  document.getElementById("lfill").style.width = p + "%";
+  document.getElementById("lmsg").textContent  = msg;
+}
+
+// ── LOAD IFC ─────────────────────────────────────
+async function loadIFC() {
+  document.getElementById("vload").classList.remove("hidden");
+  prog(5, "Initializing web-ifc...");
+
+  // Clear
+  while(ifcGroup.children.length) ifcGroup.remove(ifcGroup.children[0]);
+  elementMap.clear();
+  allMeshes.length = 0;
+  selExpId = null;
+  breakdownMode = false;
+  roomHighlightIds.clear();
+
+  try {
+    ifcAPI = new WebIFC.IfcAPI();
+    ifcAPI.SetWasmPath("https://cdn.jsdelivr.net/npm/web-ifc@0.0.44/");
+    await ifcAPI.Init();
+    prog(20, "Fetching IFC file...");
+
+    const res = await fetch(API + "/get-ifc");
+    if(!res.ok) throw new Error("No IFC found — upload a file first!");
+    prog(40, "Parsing IFC...");
+
+    modelId = ifcAPI.OpenModel(new Uint8Array(await res.arrayBuffer()), {
+      COORDINATE_TO_ORIGIN: true,
+      USE_FAST_BOOLS: false
+    });
+    prog(55, "Building geometry...");
+
+    // StreamAllMeshes groups by expressId automatically
+    ifcAPI.StreamAllMeshes(modelId, (ifcMesh) => {
+      const expId = ifcMesh.expressID;
+      const geoms = ifcMesh.geometries;
+      const meshesForEl = [];
+
+      for(let i = 0; i < geoms.size(); i++) {
+        const pg   = geoms.get(i);
+        const geom = ifcAPI.GetGeometry(modelId, pg.geometryExpressID);
+        if(!geom) continue;
+        try {
+          const verts = ifcAPI.GetVertexArray(geom.GetVertexData(), geom.GetVertexDataSize());
+          const idxs  = ifcAPI.GetIndexArray(geom.GetIndexData(), geom.GetIndexDataSize());
+
+          if(!verts?.length || !idxs?.length) { geom.delete(); continue; }
+
+          // Skip near-fully-transparent (space volumes)
+          const c = pg.color;
+          if(c.w < 0.05) { geom.delete(); continue; }
+
+          const pos=[], nor=[];
+          for(let j=0; j<verts.length; j+=6) {
+            pos.push(verts[j],verts[j+1],verts[j+2]);
+            nor.push(verts[j+3],verts[j+4],verts[j+5]);
+          }
+
+          const g = new THREE.BufferGeometry();
+          g.setAttribute("position", new THREE.Float32BufferAttribute(pos,3));
+          g.setAttribute("normal",   new THREE.Float32BufferAttribute(nor,3));
+          g.setIndex(new THREE.BufferAttribute(new Uint32Array(idxs),1));
+
+          const mat = new THREE.MeshLambertMaterial({
+            color:       new THREE.Color(c.x,c.y,c.z),
+            transparent: c.w < 0.99,
+            opacity:     c.w,
+            side:        c.w < 0.99 ? THREE.DoubleSide : THREE.FrontSide
+          });
+
+          const m = new THREE.Mesh(g, mat);
+          const mx = new THREE.Matrix4();
+          mx.fromArray(pg.flatTransformation);
+          m.applyMatrix4(mx);
+          m.userData = {expressId: expId, subIndex: i};
+
+          ifcGroup.add(m);
+          allMeshes.push(m);
+          meshesForEl.push({
+            mesh: m,
+            origColor: {r:c.x, g:c.y, b:c.z, a:c.w}
+          });
+        } catch(e) {
+          // skip bad geometry
+        }
+        geom.delete();
+      }
+
+      if(meshesForEl.length > 0) {
+        elementMap.set(expId, {
+          meshes: meshesForEl,
+          type:   "Element"
+        });
+      }
+    });
+
+    const n = allMeshes.length;
+    if(!n) throw new Error("No geometry found.");
+    prog(88, `Loaded ${n} meshes (${elementMap.size} elements) — centering...`);
+
+    centerAndOrient();
+    prog(100, "Done!");
+    setTimeout(() => document.getElementById("vload").classList.add("hidden"), 500);
+    console.log(`Loaded: ${n} meshes, ${elementMap.size} elements`);
+
+  } catch(err) {
+    prog(0, "Error: " + err.message);
+    console.error(err);
+  }
+}
+
+// ── CENTER + AUTO-ORIENT ───────────────────────────
+function centerAndOrient() {
+  // First get raw bounding box without rotation
+  ifcGroup.rotation.set(0,0,0);
+  ifcGroup.position.set(0,0,0);
+  ifcGroup.updateMatrixWorld(true);
+
+  const box = new THREE.Box3().setFromObject(ifcGroup);
+  const sz  = box.getSize(new THREE.Vector3());
+  const ctr = box.getCenter(new THREE.Vector3());
+
+  // Center horizontally
+  ifcGroup.position.set(-ctr.x, -box.min.y, -ctr.z);
+
+  // Your IFC is already Y-up — no rotation needed
+  const needsRotation = false;
+
+  if(needsRotation) {
+    ifcGroup.rotation.x = -Math.PI / 2;
+    // Recalculate after rotation
+    ifcGroup.updateMatrixWorld(true);
+    const box2 = new THREE.Box3().setFromObject(ifcGroup);
+    const sz2  = box2.getSize(new THREE.Vector3());
+    const ctr2 = box2.getCenter(new THREE.Vector3());
+    ifcGroup.position.set(-ctr2.x, -box2.min.y, -ctr2.z);
+    sph.r  = Math.max(sz2.x, sz2.y, sz2.z) * 1.8;
+    tgt    = new THREE.Vector3(0, sz2.y * 0.25, 0);
+  } else {
+    sph.r = Math.max(sz.x, sz.y, sz.z) * 1.8;
+    tgt   = new THREE.Vector3(0, sz.y * 0.25, 0);
+  }
+
+  sph.theta = 0.6;
+  sph.phi   = 1.0;
+  camUpdate();
+}
+
+// ── RAYCASTING ────────────────────────────────────
+const ray   = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+function doRaycast(e) {
+  const rect = canvas.getBoundingClientRect();
+  mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+  mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+  ray.setFromCamera(mouse, camera);
+
+  const hits = ray.intersectObjects(allMeshes, false);
+  if(hits.length === 0) return;
+
+  const hitMesh = hits[0].object;
+  const expId   = hitMesh.userData?.expressId;
+  if(!expId) return;
+
+  if(breakdownMode) {
+    // Select individual sub-mesh
+    selectSubMesh(hitMesh, expId);
+  } else {
+    // Select whole element
+    selectElement(expId);
+  }
+}
+
+// ── SELECT WHOLE ELEMENT ──────────────────────────
+function selectElement(expId) {
+  // Clear previous selection
+  clearSelection();
+
+  selExpId = expId;
+  const el = elementMap.get(expId);
+  if(!el) return;
+
+  // Highlight all sub-meshes of this element GREEN
+  el.meshes.forEach(({mesh}) => {
+    mesh.material.color.setRGB(0.18, 0.82, 0.38);
+    mesh.material.emissive = new THREE.Color(0.03, 0.15, 0.06);
+    mesh.material.transparent = true;
+    mesh.material.opacity = 0.9;
+    mesh.material.needsUpdate = true;
+  });
+
+  // Show breakdown bar
+  const bar = document.getElementById("breakdown-bar");
+  bar.style.display = "flex";
+  const subCount = el.meshes.length;
+  document.getElementById("breakdown-label").textContent =
+    subCount > 1
+      ? `Whole element (${subCount} parts)`
+      : "Single element";
+  document.getElementById("breakdown-btn").textContent =
+    subCount > 1 ? "Break Down" : "No sub-parts";
+  document.getElementById("breakdown-btn").disabled = subCount <= 1;
+
+  // Get info
+  loadElementInfo(expId);
+  showParamsFor(expId);
+  showTab("element", document.querySelectorAll(".ptab")[1]);
+
+  document.getElementById("einfo").textContent =
+    "Element  |  Express ID: " + expId +
+    (subCount > 1 ? "  |  " + subCount + " parts" : "");
+}
+
+// ── SELECT SUB-MESH (breakdown mode) ─────────────
+function selectSubMesh(mesh, expId) {
+  clearSelection();
+  selExpId = expId;
+
+  // Highlight only this single mesh
+  mesh.material.color.setRGB(0.18, 0.82, 0.38);
+  mesh.material.emissive = new THREE.Color(0.03, 0.15, 0.06);
+  mesh.material.transparent = true;
+  mesh.material.opacity = 0.9;
+  mesh.material.needsUpdate = true;
+
+  // Show sub-mesh info
+  const box = new THREE.Box3().setFromObject(mesh);
+  const sz  = box.getSize(new THREE.Vector3());
+  const el  = elementMap.get(expId);
+
+  document.getElementById("ipanel").innerHTML = `
+    <div class="isec">
+      <div class="isectitle">Sub-Component</div>
+      <div class="irow">
+        <span class="ikey">Part of ID</span>
+        <span class="ival">${expId}</span>
+      </div>
+      <div class="irow">
+        <span class="ikey">Sub-index</span>
+        <span class="ival">${mesh.userData.subIndex} of ${el?.meshes.length||1}</span>
+      </div>
+    </div>
+    <div class="isec">
+      <div class="isectitle">Dimensions</div>
+      <div class="irow"><span class="ikey">Width</span><span class="ival">${sz.x.toFixed(3)} m</span></div>
+      <div class="irow"><span class="ikey">Height</span><span class="ival">${sz.y.toFixed(3)} m</span></div>
+      <div class="irow"><span class="ikey">Depth</span><span class="ival">${sz.z.toFixed(3)} m</span></div>
+    </div>
+    <div style="margin-top:10px">
+      <button onclick="selectElement(${expId})"
+              style="width:100%;padding:7px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:12px;cursor:pointer;font-family:var(--sans)">
+        Select Whole Element
+      </button>
+    </div>
+  `;
+  document.getElementById("einfo").textContent =
+    "Sub-component  |  Part of ID: " + expId;
+}
+
+// ── CLEAR SELECTION ───────────────────────────────
+function clearSelection() {
+  if(selExpId !== null) {
+    const prev = elementMap.get(selExpId);
+    if(prev) {
+      prev.meshes.forEach(({mesh, origColor}) => {
+        mesh.material.color.setRGB(origColor.r, origColor.g, origColor.b);
+        mesh.material.emissive = new THREE.Color(0,0,0);
+        mesh.material.transparent = origColor.a < 0.99;
+        mesh.material.opacity = origColor.a;
+        mesh.material.needsUpdate = true;
+      });
+    }
+    selExpId = null;
+  }
+}
+
+// ── BREAKDOWN TOGGLE ──────────────────────────────
+window.toggleBreakdown = function() {
+  breakdownMode = !breakdownMode;
+  const btn = document.getElementById("breakdown-btn");
+  btn.classList.toggle("active", breakdownMode);
+  btn.textContent = breakdownMode ? "Exit Breakdown" : "Break Down";
+  document.getElementById("breakdown-label").textContent =
+    breakdownMode
+      ? "Click individual part to inspect"
+      : "Whole element selected";
+
+  if(!breakdownMode && selExpId) {
+    selectElement(selExpId);
+  }
+};
+
+// ── LOAD ELEMENT INFO FROM NEO4J ──────────────────
+async function loadElementInfo(expId) {
+  document.getElementById("ipanel").innerHTML =
+    `<div class="iempty"><span class="spinner"></span>Loading element data...</div>`;
+
+  try {
+    const res  = await fetch(API + "/element-info/" + expId);
+    const data = await res.json();
+    renderElementPanel(expId, data);
+  } catch(e) {
+    renderElementPanelFallback(expId);
+  }
+}
+
+function badgeCls(type) {
+  const t = (type||"").toLowerCase();
+  if(t.includes("wall"))   return "b-wall";
+  if(t.includes("slab"))   return "b-slab";
+  if(t.includes("door"))   return "b-door";
+  if(t.includes("window")) return "b-window";
+  if(t.includes("furni"))  return "b-furniture";
+  return "b-element";
+}
+
+function renderElementPanel(expId, apiData) {
+  const el      = elementMap.get(expId);
+  const box     = new THREE.Box3();
+  el?.meshes.forEach(({mesh}) => box.expandByObject(mesh));
+  const sz      = box.getSize(new THREE.Vector3());
+  const type    = apiData.element_type || "Element";
+  const d       = apiData.data || {};
+  const subCount = el?.meshes.length || 1;
+
+  // Rooms this element belongs to
+  let roomHtml = "";
+  if(d.rooms && d.rooms.length > 0) {
+    const validRooms = d.rooms.filter(r => r.room);
+    if(validRooms.length > 0) {
+      roomHtml = validRooms.map(r =>
+        `<span class="room-tag">${r.room}${r.area ? ` (${r.area}m²)`:""}</span> `
+      ).join("");
+    }
+  }
+
+  const roomOpts = rooms.map(r =>
+    `<option value="${r.Nr}">${r.Raum} (${r["NGF (m\u00B2)"]||""}m²)</option>`
+  ).join("");
+
+  document.getElementById("ipanel").innerHTML = `
+    <div class="isec">
+      <div class="isectitle">Element Type</div>
+      <div class="irow">
+        <span class="ikey">Type</span>
+        <span class="ival"><span class="badge ${badgeCls(type)}">${type}</span></span>
+      </div>
+      <div class="irow">
+        <span class="ikey">Express ID</span>
+        <span class="ival">${expId}</span>
+      </div>
+      <div class="irow">
+        <span class="ikey">Sub-parts</span>
+        <span class="ival">${subCount}</span>
+      </div>
+      ${d.name ? `
+      <div class="irow">
+        <span class="ikey">IFC Name</span>
+        <span class="ival" style="font-size:10px;text-align:right;max-width:160px;word-break:break-all">${d.name}</span>
+      </div>` : ""}
+      ${d.is_external !== undefined ? `
+      <div class="irow">
+        <span class="ikey">External</span>
+        <span class="ival">${d.is_external ? "Yes" : "No"}</span>
+      </div>` : ""}
+      ${d.material ? `
+      <div class="irow">
+        <span class="ikey">Material</span>
+        <span class="ival" style="font-size:10px;max-width:160px;text-align:right">${d.material.split("|")[0].trim()}</span>
+      </div>` : ""}
+    </div>
+
+    <div class="isec">
+      <div class="isectitle">Dimensions</div>
+      <div class="irow">
+        <span class="ikey">Width</span>
+        <span class="ival">${sz.x.toFixed(2)} m</span>
+      </div>
+      <div class="irow">
+        <span class="ikey">Height</span>
+        <span class="ival">${sz.y.toFixed(2)} m</span>
+      </div>
+      <div class="irow">
+        <span class="ikey">Depth</span>
+        <span class="ival">${sz.z.toFixed(2)} m</span>
+      </div>
+      ${d.width ? `
+      <div class="irow">
+        <span class="ikey">Opening W</span>
+        <span class="ival">${(d.width/1000).toFixed(3)} m</span>
+      </div>` : ""}
+      ${d.height ? `
+      <div class="irow">
+        <span class="ikey">Opening H</span>
+        <span class="ival">${(d.height/1000).toFixed(3)} m</span>
+      </div>` : ""}
+      ${d.area ? `
+      <div class="irow">
+        <span class="ikey">Area</span>
+        <span class="ival">${d.area} m²</span>
+      </div>` : ""}
+    </div>
+
+    ${roomHtml ? `
+    <div class="isec">
+      <div class="isectitle">Belongs to Rooms</div>
+      <div style="padding:6px 0;display:flex;flex-wrap:wrap;gap:4px">${roomHtml}</div>
+    </div>` : ""}
+
+    <div class="isec">
+      <div class="isectitle">Edit Properties</div>
+      <div class="irow">
+        <span class="ikey">Cost (EUR)</span>
+        <input class="iedit" type="number" placeholder="0.00"
+               id="edit-cost-${expId}"
+               onchange="markDirty(${expId},'cost',this.value)">
+      </div>
+      <div class="irow">
+        <span class="ikey">Contractor</span>
+        <input class="iedit" type="text" placeholder="Company name"
+               id="edit-contractor-${expId}"
+               onchange="markDirty(${expId},'contractor',this.value)">
+      </div>
+      <div class="irow">
+        <span class="ikey">Notes</span>
+        <input class="iedit" type="text" placeholder="Add notes..."
+               id="edit-notes-${expId}"
+               onchange="markDirty(${expId},'notes',this.value)">
+      </div>
+    </div>
+
+    <div class="isec">
+      <div class="isectitle">Reassign to Room</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">
+        Move this element to a different room in Neo4j:
+      </div>
+      <select class="rselect" id="room-reassign-${expId}"
+              onchange="handleReassign(${expId}, '${type}', this.value, ${d.area||0})">
+        <option value="">-- Select new room --</option>
+        ${roomOpts}
+      </select>
+    </div>
+  `;
+
+  // Restore any existing edits
+  const ex = dirty["elem_"+expId] || {};
+  if(ex.cost)       document.getElementById("edit-cost-"+expId).value       = ex.cost;
+  if(ex.contractor) document.getElementById("edit-contractor-"+expId).value = ex.contractor;
+  if(ex.notes)      document.getElementById("edit-notes-"+expId).value      = ex.notes;
+}
+
+function renderElementPanelFallback(expId) {
+  // No Neo4j data — show geometry only
+  const el  = elementMap.get(expId);
+  const box = new THREE.Box3();
+  el?.meshes.forEach(({mesh}) => box.expandByObject(mesh));
+  const sz  = box.getSize(new THREE.Vector3());
+  const subCount = el?.meshes.length || 1;
+
+  const roomOpts = rooms.map(r =>
+    `<option value="${r.Nr}">${r.Raum}</option>`
+  ).join("");
+
+  document.getElementById("ipanel").innerHTML = `
+    <div class="isec">
+      <div class="isectitle">Element</div>
+      <div class="irow"><span class="ikey">Express ID</span><span class="ival">${expId}</span></div>
+      <div class="irow"><span class="ikey">Sub-parts</span><span class="ival">${subCount}</span></div>
+    </div>
+    <div class="isec">
+      <div class="isectitle">Dimensions</div>
+      <div class="irow"><span class="ikey">Width</span><span class="ival">${sz.x.toFixed(2)} m</span></div>
+      <div class="irow"><span class="ikey">Height</span><span class="ival">${sz.y.toFixed(2)} m</span></div>
+      <div class="irow"><span class="ikey">Depth</span><span class="ival">${sz.z.toFixed(2)} m</span></div>
+    </div>
+    <div class="isec">
+      <div class="isectitle">Reassign to Room</div>
+      <select class="rselect" onchange="handleReassign(${expId},'Element',this.value,0)">
+        <option value="">-- Select new room --</option>
+        ${roomOpts}
+      </select>
+    </div>
+  `;
+}
+
+// ── REASSIGN → NEO4J ──────────────────────────────
+window.handleReassign = function(expId, elemType, toRoomId, area) {
+  if(!toRoomId) return;
+  const room = rooms.find(r => r.Nr === toRoomId);
+  if(!room) return;
+
+  dirty["reassign_"+expId] = {
+    type:       "reassign",
+    express_id: expId,
+    element_type: elemType,
+    to_room_id:  toRoomId,
+    to_room_name:room.Raum,
+    area:        area || 0
+  };
+
+  showSave(`Reassigning to "${room.Raum}" — save to update Neo4j + Raumbuch`);
+
+  // Highlight the destination room row
+  document.querySelectorAll("#rbody tr").forEach(r=>r.classList.remove("r-hi"));
+  const row = document.querySelector(`#rbody tr[data-id="${toRoomId}"]`);
+  if(row) {
+    row.classList.add("r-hi");
+    row.scrollIntoView({behavior:"smooth", block:"nearest"});
+  }
+
+  // Briefly switch to Raumbuch tab to show user
+  showTab("raumbuch", document.querySelectorAll(".ptab")[0]);
+  setTimeout(() => showTab("element", document.querySelectorAll(".ptab")[1]), 1200);
+};
+
+window.markDirty = function(expId, field, val) {
+  const key = "elem_"+expId;
+  if(!dirty[key]) dirty[key] = {type:"element", express_id:expId};
+  dirty[key][field] = val;
+  showSave("Element properties changed");
+};
+
+// ── PARAMS ────────────────────────────────────────
+function showParamsFor(expId) {
+  document.getElementById("p-empty").style.display = "none";
+  const pp = document.getElementById("p-panel");
+  pp.style.display = "flex";
+  document.getElementById("p-title").textContent = "Custom Parameters — ID: " + expId;
+  if(!cparams[expId]) cparams[expId] = [];
+  renderParams(expId);
+}
+
+function renderParams(id) {
+  const list = document.getElementById("p-list");
+  const ps   = cparams[id]||[];
+  if(!ps.length) {
+    list.innerHTML = `
+      <div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;line-height:1.7">
+        No parameters yet<br>
+        <span style="color:var(--accent2)">Examples: Cost, Contractor,<br>Warranty, Installation Date</span>
+      </div>`;
+    return;
+  }
+  list.innerHTML = ps.map((p,i)=>`
+    <div class="prow">
+      <input class="pkey" type="text" placeholder="e.g. Cost"
+             value="${p.k||""}"
+             onchange="upParam(${id},${i},'k',this.value)">
+      <input class="pval" type="text" placeholder="e.g. 450 EUR"
+             value="${p.v||""}"
+             onchange="upParam(${id},${i},'v',this.value)">
+      <button class="pdel" onclick="delParam(${id},${i})">×</button>
+    </div>
+  `).join("");
+}
+
+window.addParam  = ()=>{if(selExpId!==null){if(!cparams[selExpId])cparams[selExpId]=[];cparams[selExpId].push({k:"",v:""});renderParams(selExpId);}};
+window.delParam  = (id,i)=>{cparams[id].splice(i,1);renderParams(id);};
+window.upParam   = (id,i,f,v)=>{if(cparams[id])cparams[id][i][f]=v;};
+
+// ── RAUMBUCH TABLE ────────────────────────────────
+async function loadRaumbuch() {
+  try {
+    const res  = await fetch(API+"/raumbuch");
+    const data = await res.json();
+    if(data.status!=="success") return;
+    rooms = data.rooms;
+    renderRaumbuch(rooms);
+  } catch(e) { console.error("Raumbuch error:", e); }
+}
+
+function renderRaumbuch(roomList) {
+  document.getElementById("rbody").innerHTML = roomList.map(r => {
+    const nr    = r["Nr"]||"";
+    const name  = r["Raum"]||"";
+    const ngf   = r["NGF (m\u00B2)"]||"";
+    const paint = r["Anstrich Netto (m\u00B2)"]||r["Anstrich (m\u00B2)"]||"";
+    const tiles = r["Fliesen (m\u00B2)"]||0;
+    const doors = r["T\u00FCren Anz."]||0;
+
+    return `<tr data-id="${nr}" onclick="roomClick('${nr}','${name}',this)">
+      <td class="tdn">${name}</td>
+      <td>${ngf}</td>
+      <td>${paint}</td>
+      <td style="color:${tiles>0?'#0d6e6e':'inherit'}">${tiles}</td>
+      <td>${doors}</td>
+    </tr>`;
+  }).join("");
+}
+
+// ── ROOM CLICK → HIGHLIGHT + ZOOM ────────────────
+window.roomClick = function(id, name, row) {
+  // Highlight row
+  document.querySelectorAll("#rbody tr")
+    .forEach(r => r.classList.remove("r-sel","r-hi"));
+  row.classList.add("r-sel");
+
+  // Clear previous room highlights
+  roomHighlightIds.forEach(expId => {
+    if(expId === selExpId) return;
+    const el = elementMap.get(expId);
+    el?.meshes.forEach(({mesh, origColor}) => {
+      mesh.material.color.setRGB(origColor.r, origColor.g, origColor.b);
+      mesh.material.emissive = new THREE.Color(0,0,0);
+      mesh.material.opacity  = origColor.a;
+      mesh.material.needsUpdate = true;
+    });
+  });
+  roomHighlightIds.clear();
+
+  // Find room data
+  const room = rooms.find(r => r.Nr === id);
+  if(room) {
+    document.getElementById("einfo").textContent =
+      "ROOM: " + name + "  |  NGF: " + (room["NGF (m\u00B2)"]||"—") + "m²" +
+      "  |  Paint: " + (room["Anstrich Netto (m\u00B2)"]||room["Anstrich (m\u00B2)"]||"—") + "m²";
+  }
+
+  // We don't have direct IFC-to-room mesh mapping
+  // so we do a camera zoom and show room info
+  zoomToCenter(id);
+
+  // Collect approximate positions of all meshes
+  // and highlight all in blue
+  const total = elementMap.size;
+  let idx = Array.from(elementMap.keys()).indexOf(parseInt(id));
+  if(idx < 0) idx = 0;
+
+  // Highlight a fraction of elements as belonging to this room
+  // (approximation without exact IFC space data)
+  // In real implementation we would query Neo4j for elements in this room
+  highlightRoomElementsFromNeo4j(id, name);
+};
+
+async function highlightRoomElementsFromNeo4j(roomId, roomName) {
+  // Ask AI which elements belong to this room via a simple query
+  try {
+    const res  = await fetch(API+"/chat", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        question: `What are the Express IDs of walls, doors and windows that belong to room ${roomId} named ${roomName}? Return as a comma-separated list of numbers only.`
+      })
+    });
+    // We can't get Express IDs this way yet
+    // For now just zoom camera
+  } catch(e) {}
+
+  // Zoom camera to a better angle
+  zoomToCenter();
+}
+
+function zoomToCenter(roomId) {
+  const box = new THREE.Box3().setFromObject(ifcGroup);
+  const sz  = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(sz.x, sz.y, sz.z);
+
+  // Each room gets a different camera angle
+  // based on its position in the rooms list
+  const roomIndex = rooms.findIndex(r => r.Nr === roomId);
+  const total     = rooms.length || 1;
+
+  // Distribute rooms around the building (360 degrees)
+  const fraction  = roomIndex / total;
+  const targetTheta = fraction * Math.PI * 2;
+  const targetR     = maxDim * 0.7;
+  const targetPhi   = 0.9;
+
+  // Smooth animation to new camera position
+  const startTheta = sph.theta;
+  const startR     = sph.r;
+  const startPhi   = sph.phi;
+  const steps      = 30;
+  let   step       = 0;
+
+  const anim = setInterval(() => {
+    const t   = step / steps;
+    const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t; // ease in-out
+
+    sph.theta = startTheta + (targetTheta - startTheta) * ease;
+    sph.r     = startR     + (targetR     - startR)     * ease;
+    sph.phi   = startPhi   + (targetPhi   - startPhi)   * ease;
+    camUpdate();
+
+    if(++step >= steps) clearInterval(anim);
+  }, 16);
+}
+
+// ── TABS ──────────────────────────────────────────
+window.showTab = function(name, btn) {
+  document.querySelectorAll(".tc").forEach(t=>t.classList.remove("active"));
+  document.querySelectorAll(".ptab").forEach(b=>b.classList.remove("active"));
+  document.getElementById("tab-"+name).classList.add("active");
+  if(btn) btn.classList.add("active");
+};
+
+// ── TOOLBAR ───────────────────────────────────────
+window.setMode = function(m) {
+  mode = m;
+  document.getElementById("btn-orbit").classList.toggle("active", m==="orbit");
+  document.getElementById("btn-select").classList.toggle("active", m==="select");
+  canvas.style.cursor = m==="select" ? "crosshair" : "grab";
+  document.getElementById("einfo").textContent =
+    m==="select"
+      ? "Click any element — whole element selected by default"
+      : "Drag to orbit — scroll to zoom";
+};
+
+window.resetCam = function() {
+  if(allMeshes.length > 0) {
+    const box = new THREE.Box3().setFromObject(ifcGroup);
+    const sz  = box.getSize(new THREE.Vector3());
+    sph = {theta:0.6, phi:1.0, r: Math.max(sz.x,sz.y,sz.z)*1.8};
+    tgt = new THREE.Vector3(0, sz.y*0.25, 0);
+    camUpdate();
+  }
+};
+
+window.toggleTransp = function() {
+  transp = !transp;
+  elementMap.forEach(({meshes}) => {
+    meshes.forEach(({mesh, origColor}) => {
+      if(mesh.userData.expressId === selExpId) return;
+      mesh.material.transparent = true;
+      mesh.material.opacity = transp ? 0.12 : origColor.a;
+      mesh.material.needsUpdate = true;
+    });
+  });
+};
+
+window.showAll = function() {
+  clearSelection();
+  roomHighlightIds.clear();
+  breakdownMode = false;
+
+  elementMap.forEach(({meshes}) => {
+    meshes.forEach(({mesh, origColor}) => {
+      mesh.visible = true;
+      mesh.material.color.setRGB(origColor.r, origColor.g, origColor.b);
+      mesh.material.emissive = new THREE.Color(0,0,0);
+      mesh.material.transparent = origColor.a < 0.99;
+      mesh.material.opacity = origColor.a;
+      mesh.material.needsUpdate = true;
+    });
+  });
+
+  document.getElementById("einfo").textContent =
+    "Orbit to navigate — Switch to Select to inspect elements";
+  document.getElementById("ipanel").innerHTML =
+    `<div class="iempty">Switch to Select mode then click any element in the 3D view to inspect it</div>`;
+  document.getElementById("breakdown-bar").style.display = "none";
+  document.getElementById("p-empty").style.display = "block";
+  document.getElementById("p-panel").style.display  = "none";
+  document.querySelectorAll("#rbody tr")
+    .forEach(r => r.classList.remove("r-sel","r-hi"));
+};
+
+// ── SAVE / DISCARD ────────────────────────────────
+function showSave(msg) {
+  document.getElementById("savemsg").textContent = msg;
+  document.getElementById("savebar").classList.add("show");
+}
+
+window.saveAll = async function() {
+  let updated = false;
+
+  for(const ch of Object.values(dirty)) {
+
+    if(ch.type === "reassign") {
+      // Call the reassign endpoint
+      const res = await fetch(API+"/reassign-element", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          express_id:   ch.express_id,
+          to_room_id:   ch.to_room_id,
+          element_type: ch.element_type,
+          area:         ch.area || 0
+        })
+      });
+      const data = await res.json();
+      if(data.status === "success" && data.raumbuch) {
+        rooms = data.raumbuch;
+        renderRaumbuch(rooms);
+        updated = true;
+      }
+    }
+  }
+
+  // Clear all dirty
+  Object.keys(dirty).forEach(k => delete dirty[k]);
+  document.getElementById("savebar").classList.remove("show");
+
+  if(updated) {
+    document.getElementById("einfo").textContent =
+      "Neo4j updated + Raumbuch recalculated!";
+    // Reload element info to show new room assignment
+    if(selExpId !== null) loadElementInfo(selExpId);
+  }
+};
+
+window.discardAll = function() {
+  Object.keys(dirty).forEach(k => delete dirty[k]);
+  document.getElementById("savebar").classList.remove("show");
+};
+
+// ── RESIZER ───────────────────────────────────────
+let rzg = false;
+document.getElementById("resizer")
+  .addEventListener("mousedown", () => {
+    rzg = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  });
+window.addEventListener("mousemove", e => {
+  if(!rzg) return;
+  const rect = document.querySelector(".layout").getBoundingClientRect();
+  const w = Math.max(280, Math.min(520, rect.right - e.clientX));
+  document.getElementById("rpanel").style.width = w + "px";
+  resz();
+});
+window.addEventListener("mouseup", () => {
+  rzg = false;
+  document.body.style.cursor = "";
+  document.body.style.userSelect = "";
+});
+
+// ── RENDER LOOP ───────────────────────────────────
+(function animate() {
+  requestAnimationFrame(animate);
+  rend.render(scene, camera);
+})();
+
+// ── INIT ──────────────────────────────────────────
+window.reload = async function() {
+  await Promise.all([loadIFC(), loadRaumbuch()]);
+};
+
+window.addEventListener("load", () => {
+  camUpdate();
+  window.reload();
+});
+
+</script>
+</body>
+</html>
