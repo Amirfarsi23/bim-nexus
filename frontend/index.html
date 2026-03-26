@@ -6,6 +6,21 @@
   <title>BIM Nexus — Building Intelligence Platform</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
+    .vr-overlay{display:none;position:fixed;inset:0;background:rgba(10,14,18,0.85);backdrop-filter:blur(6px);z-index:1000;align-items:center;justify-content:center;}
+    .vr-overlay.show{display:flex;}
+    .vr-modal{background:#fff;border:1px solid #E2E0D8;border-radius:12px;padding:36px;width:480px;max-width:90vw;}
+    .vr-modal-title{font-size:17px;font-weight:600;color:#1A1916;margin-bottom:6px;}
+    .vr-modal-sub{font-size:13px;color:#7C7B74;margin-bottom:24px;line-height:1.5;}
+    .vr-options{display:flex;flex-direction:column;gap:12px;margin-bottom:16px;}
+    .vr-option{display:flex;align-items:flex-start;gap:16px;padding:18px 20px;border:1.5px solid #E2E0D8;border-radius:8px;cursor:pointer;transition:all 0.15s;text-decoration:none;background:#F5F4F0;}
+    .vr-option:hover{border-color:#2D5C42;background:#E8F2EC;}
+    .vr-option-icon{font-size:26px;flex-shrink:0;}
+    .vr-option-title{font-size:14px;font-weight:600;color:#1A1916;margin-bottom:3px;}
+    .vr-option-desc{font-size:12px;color:#7C7B74;line-height:1.5;}
+    .vr-option-badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;margin-left:auto;align-self:center;flex-shrink:0;}
+    .badge-green{background:#E8F2EC;color:#1A3A2A;border:1px solid #B6D9C2;}
+    .badge-gray{background:#F0EFE9;color:#7C7B74;border:1px solid #E2E0D8;}
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
@@ -706,6 +721,7 @@
             <button class="btn btn-primary" onclick="uploadIFC()">
               Process File
             </button>
+            <button class="btn btn-outline" onclick="openVRModal()" style="margin-left:8px;">🥽 Open in VR</button>
           </div>
           <div id="upload-alert" class="alert"></div>
         </div>
@@ -1029,6 +1045,44 @@ function showAlert(id, type, html) {
   el.className = `alert alert-${type} show`;
   el.innerHTML = html;
 }
+
+function openVRModal() {
+  const url = window.location.origin + "/viewer";
+  document.getElementById("webxr-link").href = url;
+  document.getElementById("vr-url-box").textContent = "🔗 " + url;
+  document.getElementById("vr-overlay").classList.add("show");
+}
+function closeVRModal(e) {
+  if (!e || e.target === document.getElementById("vr-overlay")) {
+    document.getElementById("vr-overlay").classList.remove("show");
+  }
+}
 </script>
+<div class="vr-overlay" id="vr-overlay" onclick="closeVRModal(event)">
+  <div class="vr-modal">
+    <div class="vr-modal-title">Open in VR</div>
+    <div class="vr-modal-sub">Choose how to experience your building in VR.</div>
+    <div class="vr-options">
+      <a class="vr-option" id="webxr-link" href="#" target="_blank">
+        <div class="vr-option-icon">🌐</div>
+        <div>
+          <div class="vr-option-title">Browser VR — No install</div>
+          <div class="vr-option-desc">Open in Quest browser → click Enter VR. Works on Quest 2 and Quest 3.</div>
+        </div>
+        <span class="vr-option-badge badge-green">READY</span>
+      </a>
+      <div class="vr-option" style="opacity:0.5;cursor:default;">
+        <div class="vr-option-icon">📱</div>
+        <div>
+          <div class="vr-option-title">BIM Nexus App — Native Quest</div>
+          <div class="vr-option-desc">Hand tracking, AI voice, better performance.</div>
+        </div>
+        <span class="vr-option-badge badge-gray">COMING SOON</span>
+      </div>
+    </div>
+    <div id="vr-url-box" style="background:#F5F4F0;border:1px solid #E2E0D8;border-radius:6px;padding:12px;margin-bottom:16px;font-size:11px;font-family:monospace;color:#1A3A2A;word-break:break-all;"></div>
+    <button onclick="closeVRModal()" style="width:100%;padding:9px;border:1px solid #E2E0D8;border-radius:6px;background:transparent;color:#7C7B74;font-size:13px;cursor:pointer;">Cancel</button>
+  </div>
+</div>
 </body>
 </html>
