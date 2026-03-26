@@ -202,6 +202,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script type="module">
 import * as WebIFC from "https://cdn.jsdelivr.net/npm/web-ifc@0.0.44/web-ifc-api.js";
+import { VRButton } from "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/webxr/VRButton.js";
 
 const API = "";
 
@@ -228,6 +229,7 @@ const vpane  = document.getElementById("vpane");
 const rend   = new THREE.WebGLRenderer({canvas, antialias:true});
 rend.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 rend.setClearColor(0x0f1117);
+rend.xr.enabled = true;   // ← ADD THIS LINE
 
 const scene  = new THREE.Scene();
 scene.background = new THREE.Color(0x0f1117);
@@ -1131,16 +1133,40 @@ window.addEventListener("mouseup", () => {
   document.body.style.userSelect = "";
 });
 
-// ── RENDER LOOP ───────────────────────────────────
-(function animate() {
-  requestAnimationFrame(animate);
+// WebXR requires setAnimationLoop instead of requestAnimationFrame
+rend.setAnimationLoop(function () {
   rend.render(scene, camera);
-})();
+});
 
 // ── INIT ──────────────────────────────────────────
 window.reload = async function() {
   await Promise.all([loadIFC(), loadRaumbuch()]);
 };
+
+// ── VR BUTTON ─────────────────────────────────────
+// Creates the "Enter VR" button automatically
+// Only shows if device supports WebXR (Quest browser)
+// Hidden on normal desktop browsers
+const vrBtn = VRButton.createButton(rend);
+vrBtn.style.position  = "fixed";
+vrBtn.style.bottom    = "24px";
+vrBtn.style.right     = "24px";
+vrBtn.style.zIndex    = "9999";
+vrBtn.style.border    = "2px solid #1db954";
+vrBtn.style.background = "#0f1117";
+vrBtn.style.color     = "#1db954";
+vrBtn.style.padding   = "12px 28px";
+vrBtn.style.borderRadius = "8px";
+vrBtn.style.fontSize  = "14px";
+vrBtn.style.fontWeight = "600";
+vrBtn.style.cursor    = "pointer";
+vrBtn.style.letterSpacing = "0.05em";
+document.body.appendChild(vrBtn);
+
+window.addEventListener("load", () => {
+  camUpdate();
+  window.reload();
+});
 
 window.addEventListener("load", () => {
   camUpdate();
