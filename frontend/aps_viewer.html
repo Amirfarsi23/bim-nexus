@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BIM Nexus — Autodesk APS Viewer</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Autodesk Platform Services Viewer v7 -->
+  <link rel="stylesheet" href="https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/style.css"/>
+  <script src="https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/viewer3D.js"></script>
+
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#F5F4F0;--surface:#fff;--border:#E2E0D8;
+      --text:#1A1916;--muted:#7C7B74;--accent:#1A3A2A;
+      --accent2:#2D5C42;--hi:#E8F2EC;
+      --mono:'DM Mono',monospace;--sans:'DM Sans',sans-serif;
+    }
+
+    body{font-family:var(--sans);background:#0f1117;color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+
+    /* ── HEADER ── */
+    header{
+      background:var(--accent);height:50px;
+      display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;
+    }
+    .lm{width:22px;height:22px;border:2px solid rgba(255,255,255,0.4);display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:2px}
+    .lm span{background:rgba(255,255,255,0.8)}
+    .lm span:first-child{background:#fff}
+    header h1{font-size:13px;font-weight:600;color:#fff}
+    .hbadge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:10px;background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.8);letter-spacing:.04em}
+    .nbtn{margin-left:auto;padding:5px 12px;border-radius:4px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.75);text-decoration:none;font-family:var(--sans)}
+    .nbtn:hover{background:rgba(255,255,255,0.2)}
+
+    /* ── TOOLBAR ── */
+    .toolbar{
+      background:var(--surface);border-bottom:1px solid var(--border);
+      height:42px;display:flex;align-items:center;padding:0 14px;gap:8px;flex-shrink:0;
+    }
+    .tlbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+    .tbtn{padding:4px 10px;border-radius:4px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--sans);transition:all .12s;white-space:nowrap}
+    .tbtn:hover{background:var(--hi);border-color:var(--accent2);color:var(--accent)}
+    .tsep{width:1px;height:18px;background:var(--border)}
+
+    /* status info right side */
+    .tinfo{margin-left:auto;font-size:11px;color:var(--muted);font-family:var(--mono)}
+    .tdot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--muted);margin-right:5px;vertical-align:middle}
+    .tdot.green{background:#4ADE80}
+    .tdot.amber{background:#FBBF24;animation:pulse 1s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+    /* ── VIEWER CONTAINER ── */
+    #aps-viewer{
+      flex:1;
+      position:relative;
+      overflow:hidden;
+    }
+
+    /* ── UPLOAD / PROGRESS OVERLAY ── */
+    #overlay{
+      position:absolute;inset:0;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      background:#0f1117;gap:20px;z-index:10;
+    }
+    #overlay.hidden{display:none}
+
+    .upload-card{
+      background:var(--surface);border:1px solid var(--border);
+      border-radius:10px;padding:40px 48px;text-align:center;
+      max-width:440px;width:90%;
+    }
+    .upload-icon-wrap{
+      width:56px;height:56px;border-radius:10px;
+      background:var(--hi);display:flex;align-items:center;justify-content:center;
+      margin:0 auto 20px;
+    }
+    .upload-card h2{font-size:16px;font-weight:600;color:var(--text);margin-bottom:6px}
+    .upload-card p{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:24px}
+
+    .upload-zone{
+      border:1.5px dashed var(--border);border-radius:6px;
+      padding:28px 20px;cursor:pointer;transition:all .2s;background:var(--bg);
+      margin-bottom:16px;
+    }
+    .upload-zone:hover,.upload-zone.drag-over{
+      border-color:var(--accent2);background:var(--hi);
+    }
+    .upload-zone span{font-size:13px;color:var(--muted)}
+    .upload-zone strong{display:block;font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px}
+
+    .or-row{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+    .or-row::before,.or-row::after{content:'';flex:1;height:1px;background:var(--border)}
+    .or-row span{font-size:11px;color:var(--muted)}
+
+    .use-existing-btn{
+      width:100%;padding:9px;border-radius:5px;
+      background:var(--accent);color:#fff;border:none;
+      font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer;
+      transition:background .15s;
+    }
+    .use-existing-btn:hover{background:var(--accent2)}
+    .use-existing-btn:disabled{opacity:.5;cursor:not-allowed}
+
+    /* progress */
+    #progress-wrap{display:none;flex-direction:column;align-items:center;gap:10px;width:320px}
+    .prog-title{font-size:14px;font-weight:500;color:rgba(255,255,255,.8)}
+    .prog-bar{width:100%;height:3px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden}
+    .prog-fill{height:100%;background:#2D5C42;width:0%;transition:width .3s;border-radius:2px}
+    .prog-lbl{font-size:11px;font-family:var(--mono);color:rgba(255,255,255,.35)}
+
+    /* error */
+    #error-msg{
+      display:none;background:#FEF2F2;color:#C0392B;
+      border:1px solid #FECACA;border-radius:6px;
+      padding:10px 14px;font-size:12px;max-width:400px;text-align:center;
+    }
+
+    /* hidden file input */
+    #file-input{display:none}
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="lm"><span></span><span></span><span></span><span></span></div>
+  <h1>BIM Nexus — 3D Viewer</h1>
+  <span class="hbadge">◈ Autodesk APS</span>
+  <div class="tinfo" id="hinfo">
+    <span class="tdot" id="hdot"></span>
+    <span id="hstatus">Initializing…</span>
+  </div>
+  <a href="/" class="nbtn">← Back to Platform</a>
+</header>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <span class="tlbl">Viewer</span>
+  <button class="tbtn" onclick="apsViewer && apsViewer.toolbar && apsViewer.fitToView()">Fit to View</button>
+  <button class="tbtn" onclick="apsViewer && apsViewer.setTheme('light-theme')">Light</button>
+  <button class="tbtn" onclick="apsViewer && apsViewer.setTheme('dark-theme')">Dark</button>
+  <div class="tsep"></div>
+  <a href="/viewer" class="tbtn" style="text-decoration:none">⬡ Switch to web-ifc</a>
+  <div class="tinfo" id="tinfo" style="margin-left:auto;font-size:11px;color:var(--muted);font-family:var(--mono)"></div>
+</div>
+
+<!-- APS VIEWER -->
+<div id="aps-viewer">
+
+  <!-- OVERLAY: shown until model is loaded -->
+  <div id="overlay">
+
+    <!-- Upload card (shown initially) -->
+    <div class="upload-card" id="upload-card">
+      <div class="upload-icon-wrap">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2D5C42" stroke-width="1.5">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+          <line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+      </div>
+      <h2>Autodesk APS Viewer</h2>
+      <p>High-quality cloud rendering with section cuts, measurements, and full element inspection. Powered by Autodesk Platform Services.</p>
+
+      <!-- Option A: use IFC already uploaded to BIM Nexus -->
+      <button class="use-existing-btn" id="use-existing-btn" onclick="uploadExistingIFC()">
+        Use model already uploaded to BIM Nexus
+      </button>
+
+      <div class="or-row"><span>or upload a new file</span></div>
+
+      <!-- Option B: upload fresh file -->
+      <div class="upload-zone" id="drop-zone"
+           onclick="document.getElementById('file-input').click()"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="handleDrop(event)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7C7B74" stroke-width="1.5" style="margin:0 auto 8px;display:block">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <strong>Drop IFC / RVT / DWG here</strong>
+        <span>or click to browse</span>
+      </div>
+    </div>
+
+    <!-- Progress (shown during upload/translate) -->
+    <div id="progress-wrap">
+      <div class="prog-title" id="prog-title">Uploading…</div>
+      <div class="prog-bar"><div class="prog-fill" id="prog-fill"></div></div>
+      <div class="prog-lbl" id="prog-lbl"></div>
+    </div>
+
+    <!-- Error -->
+    <div id="error-msg"></div>
+  </div>
+
+</div>
+
+<input type="file" id="file-input" accept=".ifc,.rvt,.dwg,.nwd" onchange="uploadFile(this.files[0])">
+
+<script>
+const API = '';
+let apsViewer = null;
+let pollTimer = null;
+
+// ── Status helpers ────────────────────────────────────────
+function setStatus(type, text) {
+  const dot = document.getElementById('hdot');
+  dot.className = 'tdot' + (type === 'ready' ? ' green' : type === 'loading' ? ' amber' : '');
+  document.getElementById('hstatus').textContent = text;
+}
+
+function showProgress(pct, title, lbl) {
+  document.getElementById('upload-card').style.display = 'none';
+  document.getElementById('error-msg').style.display   = 'none';
+  document.getElementById('progress-wrap').style.display = 'flex';
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-title').textContent = title;
+  document.getElementById('prog-lbl').textContent   = lbl;
+}
+
+function showError(msg) {
+  document.getElementById('progress-wrap').style.display = 'none';
+  document.getElementById('upload-card').style.display   = 'block';
+  const err = document.getElementById('error-msg');
+  err.style.display = 'block';
+  err.textContent   = 'Error: ' + msg;
+  setStatus('error', 'Failed');
+}
+
+// ── Option A: use IFC already in Flask ───────────────────
+async function uploadExistingIFC() {
+  const btn = document.getElementById('use-existing-btn');
+  btn.disabled = true;
+  btn.textContent = 'Fetching model…';
+  setStatus('loading', 'Fetching model from BIM Nexus…');
+
+  try {
+    const res = await fetch(API + '/get-ifc');
+    if (!res.ok) throw new Error('No model uploaded yet — please upload an IFC file first in the main platform.');
+    const blob = await res.blob();
+    const file = new File([blob], 'bimnexus_model.ifc', { type: 'application/octet-stream' });
+    uploadFile(file);
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = 'Use model already uploaded to BIM Nexus';
+    showError(e.message);
+  }
+}
+
+// ── Option B: drag-drop or file picker ───────────────────
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) uploadFile(file);
+}
+
+// ── Upload → APS OSS → translate ─────────────────────────
+async function uploadFile(file) {
+  if (!file) return;
+  setStatus('loading', 'Uploading to Autodesk…');
+  showProgress(10, 'Uploading ' + file.name, 'Sending to Autodesk Object Storage…');
+
+  const form = new FormData();
+  form.append('file', file);
+
+  try {
+    const res  = await fetch(API + '/api/aps/upload', { method: 'POST', body: form });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    showProgress(35, 'Translating model', 'Converting to SVF2 format for web viewing…');
+    setStatus('loading', 'Translating model…');
+    pollTranslation(data.urn);
+
+  } catch(e) {
+    showError(e.message);
+  }
+}
+
+// ── Poll translation status ───────────────────────────────
+function pollTranslation(urn) {
+  let pct = 35;
+
+  pollTimer = setInterval(async () => {
+    try {
+      const res  = await fetch(API + '/api/aps/status/' + urn);
+      const data = await res.json();
+
+      if (data.status === 'success') {
+        clearInterval(pollTimer);
+        showProgress(100, 'Translation complete', 'Loading viewer…');
+        setStatus('loading', 'Loading viewer…');
+
+        // Get read token and launch viewer
+        const tokenRes  = await fetch(API + '/api/aps/token');
+        const tokenData = await tokenRes.json();
+
+        setTimeout(() => launchViewer(urn, tokenData.access_token), 400);
+
+      } else if (data.status === 'failed') {
+        clearInterval(pollTimer);
+        showError('Translation failed. Try uploading the file again.');
+
+      } else {
+        pct = Math.min(pct + 4, 90);
+        const prog = data.progress || '';
+        showProgress(pct, 'Translating model…', prog);
+        document.getElementById('tinfo').textContent = prog;
+      }
+    } catch(e) {
+      clearInterval(pollTimer);
+      showError(e.message);
+    }
+  }, 3000);
+}
+
+// ── Init Autodesk Viewer v7 ───────────────────────────────
+function launchViewer(urn, token) {
+  document.getElementById('overlay').classList.add('hidden');
+
+  const container = document.getElementById('aps-viewer');
+
+  Autodesk.Viewing.Initializer({
+    env:            'AutodeskProduction2',
+    api:            'streamingV2',
+    getAccessToken: (cb) => cb(token, 3600),
+  }, () => {
+    apsViewer = new Autodesk.Viewing.GuiViewer3D(container, { theme: 'light-theme' });
+    apsViewer.start();
+
+    Autodesk.Viewing.Document.load(
+      'urn:' + urn,
+      (doc) => {
+        const model = doc.getRoot().getDefaultGeometry();
+        apsViewer.loadDocumentNode(doc, model).then(() => {
+          setStatus('ready', 'Model loaded — Autodesk APS');
+
+          // Show element count in toolbar
+          apsViewer.addEventListener(
+            Autodesk.Viewing.OBJECT_TREE_CREATED_EVENT, () => {
+              const count = apsViewer.model.getInstanceTree().nodeAccess.numNodes;
+              document.getElementById('tinfo').textContent =
+                count.toLocaleString() + ' elements';
+            }
+          );
+        });
+      },
+      (err) => {
+        document.getElementById('overlay').classList.remove('hidden');
+        showError('Could not load model: ' + err);
+      }
+    );
+  });
+}
+
+// ── Init: check if there's already an uploaded IFC ────────
+window.addEventListener('load', async () => {
+  setStatus('loading', 'Checking for existing model…');
+  try {
+    const res = await fetch(API + '/get-ifc', { method: 'HEAD' });
+    if (res.ok) {
+      document.getElementById('use-existing-btn').textContent =
+        '✓ Use model already uploaded to BIM Nexus';
+      setStatus('', 'Ready — select a model above');
+    } else {
+      document.getElementById('use-existing-btn').disabled = true;
+      document.getElementById('use-existing-btn').textContent =
+        'No model uploaded yet (upload first in platform)';
+      setStatus('', 'Upload a file to begin');
+    }
+  } catch {
+    setStatus('', 'Upload a file to begin');
+  }
+});
+</script>
+</body>
+</html>

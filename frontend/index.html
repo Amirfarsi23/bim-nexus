@@ -617,17 +617,18 @@
       <div class="logo-text">BIM Nexus</div>
     </div>
   </div>
-  <a href="/viewer"
+  <button onclick="openViewerModal()"
      style="margin-left:auto;
             color:rgba(255,255,255,0.7);
             font-size:12px;
             font-family:var(--sans);
-            text-decoration:none;
+            cursor:pointer;
             padding: 6px 14px;
             border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 4px;">
-    3D Viewer
-  </a>
+            border-radius: 4px;
+            background:rgba(255,255,255,0.08);">
+    ⬡ 3D Viewer
+  </button>
   <div class="header-status">
     <div class="status-dot"></div>
     API connected
@@ -1046,6 +1047,13 @@ function showAlert(id, type, html) {
   el.innerHTML = html;
 }
 
+function openViewerModal() {
+  document.getElementById('viewer-modal-overlay').style.display = 'flex';
+}
+function closeViewerModal() {
+  document.getElementById('viewer-modal-overlay').style.display = 'none';
+}
+
 function openVRModal() {
   const url = window.location.origin + "/viewer";
   document.getElementById("webxr-link").href = url;
@@ -1058,6 +1066,71 @@ function closeVRModal(e) {
   }
 }
 </script>
+<!-- ── VIEWER CHOICE MODAL ─────────────────────────────── -->
+<div id="viewer-modal-overlay"
+     style="display:none;position:fixed;inset:0;background:rgba(10,14,18,0.7);
+            backdrop-filter:blur(6px);z-index:999;align-items:center;justify-content:center;"
+     onclick="if(event.target===this)closeViewerModal()">
+  <div style="background:#fff;border:1px solid #E2E0D8;border-radius:12px;
+              padding:36px;width:500px;max-width:92vw;">
+    <div style="font-size:17px;font-weight:600;color:#1A1916;margin-bottom:6px">Open 3D Viewer</div>
+    <div style="font-size:13px;color:#7C7B74;margin-bottom:24px;line-height:1.5">
+      Choose your rendering engine. Both viewers use the same uploaded model.
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px">
+
+      <!-- web-ifc option -->
+      <a href="/viewer" target="_blank"
+         style="display:flex;align-items:flex-start;gap:16px;padding:18px 20px;
+                border:1.5px solid #E2E0D8;border-radius:8px;cursor:pointer;
+                text-decoration:none;background:#F5F4F0;transition:all .15s;"
+         onmouseover="this.style.borderColor='#2D5C42';this.style.background='#E8F2EC'"
+         onmouseout="this.style.borderColor='#E2E0D8';this.style.background='#F5F4F0'">
+        <div style="font-size:28px;flex-shrink:0">⬡</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600;color:#1A1916;margin-bottom:4px">
+            web-ifc Viewer
+          </div>
+          <div style="font-size:12px;color:#7C7B74;line-height:1.5">
+            Lightweight browser-based renderer. Instant load, element selection,
+            Raumbuch sync, room assignment, VR support. Best for daily use.
+          </div>
+        </div>
+        <span style="font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;
+                     background:#E8F2EC;color:#1A3A2A;border:1px solid #B6D9C2;
+                     align-self:center;flex-shrink:0">READY</span>
+      </a>
+
+      <!-- APS option -->
+      <a href="/aps-viewer" target="_blank"
+         style="display:flex;align-items:flex-start;gap:16px;padding:18px 20px;
+                border:1.5px solid #E2E0D8;border-radius:8px;cursor:pointer;
+                text-decoration:none;background:#F5F4F0;transition:all .15s;"
+         onmouseover="this.style.borderColor='#2D5C42';this.style.background='#E8F2EC'"
+         onmouseout="this.style.borderColor='#E2E0D8';this.style.background='#F5F4F0'">
+        <div style="font-size:28px;flex-shrink:0">◈</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600;color:#1A1916;margin-bottom:4px">
+            Autodesk APS Viewer
+          </div>
+          <div style="font-size:12px;color:#7C7B74;line-height:1.5">
+            Production-grade cloud rendering. Section cuts, precise measurements,
+            full property tree, markup tools. First load requires translation (~1 min).
+          </div>
+        </div>
+        <span style="font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;
+                     background:#DBEAFE;color:#1D4ED8;border:1px solid #BFDBFE;
+                     align-self:center;flex-shrink:0">NEW</span>
+      </a>
+
+    </div>
+    <button onclick="closeViewerModal()"
+            style="width:100%;padding:9px;border:1px solid #E2E0D8;border-radius:6px;
+                   background:transparent;color:#7C7B74;font-size:13px;
+                   cursor:pointer;font-family:var(--sans)">Cancel</button>
+  </div>
+</div>
+
 <div class="vr-overlay" id="vr-overlay" onclick="closeVRModal(event)">
   <div class="vr-modal">
     <div class="vr-modal-title">Open in VR</div>

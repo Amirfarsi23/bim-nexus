@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, render_template
 from flask_cors import CORS
 from dotenv import load_dotenv
 from neo4j import GraphDatabase
@@ -10,11 +10,14 @@ from ifc_parser import parse_ifc
 from neo4j_handler import store_building, get_user_projects, delete_user_project
 from raumbuch_generator import generate_raumbuch
 from ai_handler import answer_question
+from aps_routes import aps_bp
 
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+
+app.register_blueprint(aps_bp)
 
 # ── Single shared Neo4j driver — stays open for app lifetime ──
 driver = GraphDatabase.driver(
@@ -55,6 +58,10 @@ def home():
 @app.route("/viewer")
 def viewer():
     return open("frontend/viewer.html", encoding="utf-8").read()
+
+@app.route('/aps-viewer')
+def aps_viewer():
+    return open("frontend/aps_viewer.html", encoding="utf-8").read()
 
 @app.route("/api")
 def api_info():
